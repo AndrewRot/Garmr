@@ -1,6 +1,7 @@
 from datetime import datetime
 from reporter import Reporter
 from urlparse import urlparse
+from BeautifulSoup import BeautifulSoup
 import ConfigParser
 import logging
 import requests
@@ -53,6 +54,20 @@ class ActiveTest():
              
     def result(self, state, message, data):
         return { 'state' : state, 'message' : message, 'data' : data, 'passive' : {}}
+
+class HtmlTest(PassiveTest):
+    description = 'allow easy analysis of html source code'
+    def analyze(self, response):
+        if 'text/html' in response.headers['content-type']:
+            soup = BeautifulSoup(response.content)
+            return self.analyze_html(response, soup)
+        else:
+            result = self.result("Skip", "Content-type is not html "+ response.headers['content-type'], None)
+            return result
+            
+    def analyze_html(self, response, soup):
+        """ implement this method in subclass"""
+        pass 
     
 class Scanner():
     logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s')
