@@ -1,7 +1,6 @@
 from urlparse import urlparse
 import requests
-from scanner import ActiveTest, PassiveTest, Scanner, get_url
-
+from scanner import ActiveTest, PassiveTest, HtmlTest, Scanner, get_url
 
 class HttpOnlyAttributePresent(PassiveTest):
     description = "Inspect the Set-Cookie: header and determine if the HttpOnly attribute is present."
@@ -119,8 +118,31 @@ class StsUpgradeCheck(ActiveTest):
                     )
             result = self.result("Pass" if success else "Fail", message, None)
             return (result, response1)
-    
-        
+
+class HttpsLoginForm(HtmlTest):
+    description = "Check that html forms with password-type inputs point to https"
+    def analyze_html(self, response, soup):
+        url = urlparse(response.url)
+        forms = soup.findAll('form')
+        # look only at those form elements that have password type input elements as children
+        forms = filter(lambda x: x.findChildren("input", type="password") ,forms)
+        if len(forms) == 0:
+            result = self.result("Skip", "There are no login forms on this page", None)
+            return result
+        failforms = []
+        for form in forms:
+            if url.scheme == "https":
+                if form['action'].startswith('http:'):
+                    failforms.append(form)
+            else:
+                if not form['action'].startswith('https'):
+                    failforms.append(form)
+        if len(failforms) == 0:
+            result = self.result("Pass", "All login forms point to secure resources", forms)
+        else:
+            result = self.result("Fail", "There are login forms pointing to insecure locations", failforms)
+        return result
+
 def configure(scanner):
     if isinstance(scanner, Scanner) == False:
         raise Exception("Cannot configure a non-scanner object!")
@@ -131,3 +153,4 @@ def configure(scanner):
     scanner.register_check(StsUpgradeCheck())
     scanner.register_check(HttpOnlyAttributePresent())
     scanner.register_check(SecureAttributePresent())
+    scanner.register_check(HttpsLoginForm())
