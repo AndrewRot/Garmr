@@ -171,6 +171,22 @@ class HttpsResourceOnHttpsLink(HtmlTest):
             result = self.result("Fail", "There are links to insecure locations", failtags)
         return result
 
+class InlineJS(HtmlTest):
+    description = "complain about inline JS to improve migration to CSP"
+    def analyze_html(self, response, soup):
+        url = urlparse(response.url)
+        scripts = soup.findAll('script')
+        if len(scripts) == 0:
+            result = self.result ("Skip", "There are no script tags.")
+            return result
+        inlinescripts = filter(lambda x: len(x.text) > 0, scripts)
+        if len(inlinescripts) == 0:
+            result = self.result("Pass", "No inline JavaScript found", None)
+        else:
+            result = self.result("Fail", "Inline JavaScript found", inlinescripts)
+        return result
+
+
 def configure(scanner):
     if isinstance(scanner, Scanner) == False:
         raise Exception("Cannot configure a non-scanner object!")
@@ -183,3 +199,4 @@ def configure(scanner):
     scanner.register_check(SecureAttributePresent())
     scanner.register_check(HttpsLoginForm())
     scanner.register_check(HttpsResourceOnHttpsLink())
+    scanner.register_check(InlineJS())
