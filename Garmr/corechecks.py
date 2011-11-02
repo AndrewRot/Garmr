@@ -143,6 +143,34 @@ class HttpsLoginForm(HtmlTest):
             result = self.result("Fail", "There are login forms pointing to insecure locations", failforms)
         return result
 
+
+class HttpsResourceOnHttpsLink(HtmlTest):
+    # also called 'mixed content'
+    description = "Check if all external resources are pointing to https links, when on https page"
+    secure_only = True
+    def analyze_html(self, response, soup):
+        ''' there is a list on stackoverflow[1] which claims to contain
+            all possible attributes hat may carry a URL. is
+            there a way to confirm this list is exhaustive?
+            I have removed attributes which are just links/pointers,
+            we only want those attributes to resources, the browser
+            downloads automatically
+        [1] http://stackoverflow.com/questions/2725156/complete-list-of-html-tag-attributes-which-have-a-url-value/2725168#2725168
+        '''
+        attrlist = ['codebase', 'background', 'src', 'usemap', 'data', 'icon', 'manifest', 'poster', 'archive']
+        failtags = []
+        for tag in soup.findAll(True):
+            for attr in attrlist:
+                    if tag.has_key(attr):
+                        val = tag[attr]
+                        if val.startswith('http:'):
+                            failtags.append(tag)
+        if len(failtags) == 0:
+            result = self.result("Pass", "All external resources are https", None)
+        else:
+            result = self.result("Fail", "There are links to insecure locations", failtags)
+        return result
+
 def configure(scanner):
     if isinstance(scanner, Scanner) == False:
         raise Exception("Cannot configure a non-scanner object!")
@@ -154,3 +182,4 @@ def configure(scanner):
     scanner.register_check(HttpOnlyAttributePresent())
     scanner.register_check(SecureAttributePresent())
     scanner.register_check(HttpsLoginForm())
+    scanner.register_check(HttpsResourceOnHttpsLink())
