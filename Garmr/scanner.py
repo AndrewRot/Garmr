@@ -112,7 +112,7 @@ class Scanner():
             result['end'] = result['start']
             result['duration'] = 0
             return result
-        elif (test.insecure_only and is_ssl):ygjb
+        elif (test.insecure_only and is_ssl):
             Scanner.logger.info("\t[Skip] [%s] (reason: insecure_only)" % test.__class__)
             result = ActiveTest().result("Skip", "This check is only applicable to SSL requests", None)
             result['start'] = datetime.now()
@@ -138,7 +138,6 @@ class Scanner():
                 result["passive"][passive.__class__] = self.do_passive_scan(passive, is_ssl, response)
                 self.reporter.write_passive(passive.__class__, result["passive"][passive.__class__])
             self.reporter.end_passives()
-
         return result
 
     def scan_target(self, target):
