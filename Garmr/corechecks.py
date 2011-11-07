@@ -11,11 +11,11 @@ class HttpOnlyAttributePresent(PassiveTest):
             if "httponly" in response.headers[cookieheader].lower():
                 result = self.result("Pass", "HttpOnly is set", response.headers[cookieheader])
             else:
-                result = self.result("Fail", "HttpOnly is not set", response.headers[cookieheader])            
+                result = self.result("Fail", "HttpOnly is not set", response.headers[cookieheader])
         else:
             result = self.result("Skip", "No cookie is set by this response.", None)
         return result
-    
+
 class SecureAttributePresent(PassiveTest):
     description = "Inspect the Set-Cookie: header and determine if the Secure attribute is present."
     def analyze(self, response):
@@ -27,16 +27,16 @@ class SecureAttributePresent(PassiveTest):
                 if url.scheme == "https":
                     result = self.result("Pass", "HttpOnly is set", response.headers[cookieheader])
                 else:
-                    result = self.result("Fail", "HttpOnly should only be set for cookies sent over SSL.", response.headers[cookieheader]) 
+                    result = self.result("Fail", "HttpOnly should only be set for cookies sent over SSL.", response.headers[cookieheader])
             else:
                 if url.scheme == "https":
                     result = self.result("Fail", "HttpOnly is not set", response.headers[cookieheader])
                 else:
-                    result = self.result("Pass", "The secure attribute is not set (expected for HTTP)", response.headers[cookieheader])            
+                    result = self.result("Pass", "The secure attribute is not set (expected for HTTP)", response.headers[cookieheader])
         else:
             result = self.result("Skip", "No cookie is set by this response.", None)
         return result
-        
+
 
 class StrictTransportSecurityPresent(PassiveTest):
     secure_only = True
@@ -82,12 +82,12 @@ class WebTouch(ActiveTest):
          else:
              result = self.result("Fail", "The response code was %s" % response.status_code, None)
          return (result, response)
-    
+
 class StsUpgradeCheck(ActiveTest):
     insecure_only = True
     run_passives = False
     description = "Inspect the Strict-Transport-Security redirect process according to http://tools.ietf.org/html/draft-hodges-strict-transport-sec"
-    
+
     def do_test(self, url):
         stsheader = "Strict-Transport-Security"
         u = urlparse(url)
@@ -105,7 +105,7 @@ class StsUpgradeCheck(ActiveTest):
                     correct_header = stsheader in response2.headers
                 else:
                     bad_redirect = True
-                    
+
             success = invalid_header == False and is_redirect == True and correct_header == True
             if success == True:
                 message = "The STS upgrade occurs properly (no STS header on HTTP, a 301 redirect, and an STS header in the subsequent request."
@@ -177,7 +177,7 @@ class InlineJS(HtmlTest):
         url = urlparse(response.url)
         scripts = soup.findAll('script')
         if len(scripts) == 0:
-            result = self.result ("Skip", "There are no script tags.")
+            result = self.result ("Skip", "There are no script tags.", None)
             return result
         inlinescripts = filter(lambda x: len(x.text) > 0, scripts)
         if len(inlinescripts) == 0:
