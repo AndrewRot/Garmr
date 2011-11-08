@@ -77,17 +77,18 @@ class Scanner():
     def __init__(self):
         self.resolve_target = True
         self.force_passives = False
-        self._passive_tests_ = {}
-        self._active_tests_ = {}
+        self._disabled_tests_ = []
+        self._passive_tests_ = []
+        self._active_tests_ = []
         self._targets_ = []
         self._protos_ = ["http", "https"]
         Scanner.logger.debug("Scanner initialized.")
         self.reporter = Reporter()
         self.modules = []
 
-    def do_passive_scan(self, passive, is_ssl, response):
-        if passive.secure_only and not is_ssl:
-            Scanner.logger.debug("\t\t[%s] Skip Test invalid for http scheme" % passive.__class__)
+    def do_passive_scan(self, passiveclass, is_ssl, response):
+        if passiveclass.secure_only and not is_ssl:
+            Scanner.logger.debug("\t\t[%s] Skip Test invalid for http scheme" % passiveclass)
             passive_result = PassiveTest().result("Skip", "This check is only applicable to SSL requests.", None)
             start = datetime.now()
             passive_result['start'] = start
@@ -95,71 +96,83 @@ class Scanner():
             passive_result["duration"] = 0
         else:
             start = datetime.now()
+            passive = passiveclass()
             passive_result = passive.analyze(response)
             end = datetime.now()
             td = end - start
             passive_result['start'] = start
             passive_result['end'] = end
             passive_result['duration'] = float((td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6)) / 10**6
-            Scanner.logger.info("\t\t[%s] %s %s" % (passive.__class__, passive_result['state'], passive_result['message']))
+            Scanner.logger.info("\t\t[%s] %s %s" % (passiveclass, passive_result['state'], passive_result['message']))
         return passive_result
 
-    def do_active_scan(self, test, is_ssl, target):
-        if (test.secure_only and not is_ssl):
-            Scanner.logger.info("\t[Skip] [%s] (reason: secure_only)" % test.__class__)
+    def do_active_scan(self, testclass, is_ssl, target):
+        ''' instantiate the class and run it against the specified target, if applicable '''
+        if (testclass.secure_only and not is_ssl):
+            Scanner.logger.info("\t[Skip] [%s] (reason: secure_only)" % testclass)
             result = ActiveTest().result("Skip", "This check is only applicable to SSL requests", None)
             result['start'] = datetime.now()
             result['end'] = result['start']
             result['duration'] = 0
-            return result
-        elif (test.insecure_only and is_ssl):
-            Scanner.logger.info("\t[Skip] [%s] (reason: insecure_only)" % test.__class__)
+            return result, None
+        elif (testclass.insecure_only and is_ssl):
+            Scanner.logger.info("\t[Skip] [%s] (reason: insecure_only)" % testclass)
             result = ActiveTest().result("Skip", "This check is only applicable to SSL requests", None)
             result['start'] = datetime.now()
             result['end'] = result['start']
             result['duration'] = 0
-            return result
+            return result, None
+        elif testclass in self._disabled_tests_:
+            Scanner.logger.info("\t[Skip] [%s] (reason: disabled)" % testclass)
+            result = ActiveTest().result("Skip", "This check was marked as disabled.", None)
+            result['start'] = datetime.now()
+            result['end'] = result['start']
+            result['duration'] = 0
+            return result, None
         start = datetime.now()
+        test = testclass() # from now on we have an instance of the class
         result, response = test.execute(target)
         end = datetime.now()
         td = end - start
         result['start'] = start
         result['end'] = end
         result['duration'] = float((td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6)) / 10**6
-        Scanner.logger.info("\t[%s] %s %s" % (test.__class__, result['state'], result['message']))
-        self.reporter.write_active(test.__class__, result)
+        Scanner.logger.info("\t[%s] %s %s" % (testclass, result['state'], result['message']))
+        self.reporter.write_active(testclass, result)
         if (result['state'] == "Error"):
             Scanner.logger.error(result['data'])
         if response != None and test.run_passives:
             result['passive'] = {}
             self.reporter.start_passives()
-            for passive_key in self._passive_tests_.keys():
-                passive = self._passive_tests_[passive_key]["test"]
-                result["passive"][passive.__class__] = self.do_passive_scan(passive, is_ssl, response)
-                self.reporter.write_passive(passive.__class__, result["passive"][passive.__class__])
+            for passive_testclass in self._passive_tests_:
+                result["passive"][passive_testclass] = self.do_passive_scan(passive_testclass, is_ssl, response)
+                self.reporter.write_passive(passive_testclass, result["passive"][passive_testclass])
             self.reporter.end_passives()
-        return result
+        return (result, response)
 
     def scan_target(self, target):
+        ''' iterate over registered tests and deligate for scan '''
         self.reporter.write_target(target)
         Scanner.logger.info("[%s] scanning:" % target)
         url = urlparse(target)
         is_ssl = url.scheme == "https"
         results = {}
         self.reporter.start_actives()
-        for key in self._active_tests_.keys():
-            test = self._active_tests_[key]["test"]
-            results[test.__class__] = self.do_active_scan(test, is_ssl, target)
-            if hasattr(test, 'events'): #TODO enforce every test to have event dict present?
-                if results[test.__class__]['state'] in test.events:
-                    # We are case-sensitive here. What if someone defines it as pass instead of Pass? :)
-                    nexttest = test.events[results[test.__class__]['state']]
-                    if nexttest != None: # When next event is defined as None, we stop.
-                        results[nexttest] = self.do_active_scan(nexttest(), is_ssl, target) # we have to hand over the response!!1, # important: we hand over an instance, not the class
+        self.active_tests_stack = self._active_tests_
+        while len(self.active_tests_stack) > 0:
+            testclass = self.active_tests_stack[0]
+            self.active_tests_stack = self.active_tests_stack[1:]
+            results[testclass], response = self.do_active_scan(testclass, is_ssl, target)
+            if hasattr(testclass, 'events'): #TODO enforce every test to have event dict present?
+               if results[testclass]['state'] in testclass.events and testclass.events[results[testclass]['state']] != None:
+                   # We are case-sensitive here. What if someone defines it as 'pass' instead of 'Pass'? :)
+                   nexttest = testclass.events[results[testclass]['state']]
+                   self.active_tests_stack.append(nexttest) # we have to hand over the response!!1, # important: we hand over an instance, not the class
         self.reporter.end_actives()
         return results
 
     def run_scan(self):
+        ''' iterate over target and deligate to list of tests '''
         results = {}
         self.reporter.start_report()
         self.reporter.start_targets()
@@ -178,6 +191,7 @@ class Scanner():
 
 
     def register_target(self, url):
+        ''' add target to the scanning engine '''
         u = urlparse(url)
         valid = u.netloc != "" and u.scheme in self._protos_
         reason = "%s%s" % ("[bad netloc]" if u.netloc == "" else "", "" if u.scheme in self._protos_ else "[bad scheme]")
@@ -199,6 +213,7 @@ class Scanner():
         Scanner.logger.error("%s is not a valid target (reason: %s)" % (url, reason))
 
     def configure_check(self, check_name, key, value):
+        pass #XXX defunct
         if self._active_tests_.has_key(check_name):
             check = self._active_tests_[check_name]["test"]
         elif self._passive_tests_.has_key(check_name):
@@ -212,33 +227,33 @@ class Scanner():
         check.config[key] = value
         Scanner.logger.debug("\t%s.%s=%s" % (check_name, key, value))
 
-    def disable_check(self, check_name):
-        if self._active_tests_.has_key(check_name):
-            self._active_tests_[check_name]["enabled"] = False
-        elif self._passive_tests_.has_key(check_name):
-            self._passive_tests_[check_name]["enabled"] = False
+    def disable_check(self, check_name): #TODO: put in self._disabled_tests_ IF present. warning or error if otherwise
+        ''' add a previously added test to a blacklist of test that are to be skipped '''
+        if check_name in self._active_tests_ or check_name in self._passive_tests_:
+            self._disabled_tests_.append(check_name)
         else:
             raise Exception("The requested check is not available (%s)" % check_name)
         Scanner.logger.debug("\t%s disabled.", check_name)
 
     def register_check(self, test):
-        module = test.__class__.__module__
+        ''' add a test to the scanner '''
+        module = test.__module__
 
         if module not in self.modules:
             self.modules.append(module)
 
-        key = "%s" % test.__class__
-        if isinstance(test, ActiveTest):
-            self._active_tests_[key]= { "test" : test , "enabled" : True}
-            Scanner.logger.debug("Added %s to active tests." % test.__class__)
+        if hasattr(test, "execute"):
+            self._active_tests_.append( test)
+            Scanner.logger.debug("Added %s to active tests." % test)
             return len(self._active_tests_)
-        if isinstance(test, PassiveTest):
-            self._passive_tests_[key]= { "test" : test, "enabled" : True}
-            Scanner.logger.debug("Added %s to passive tests." % test.__class__)
+        if hasattr(test, "analyze"):
+            self._passive_tests_.append( test)
+            Scanner.logger.debug("Added %s to passive tests." % test)
             return len(self._passive_tests_)
         raise Exception('test is not a valid test type')
 
     def save_configuration(self, path):
+        pass #XXX defunct
         # write out a configuration file.
         config = ConfigParser.RawConfigParser()
         config.add_section("Garmr")
@@ -254,7 +269,7 @@ class Scanner():
             for target in self._targets_:
                 config.set("Targets", "%s"%i, target)
 
-        for check in self._active_tests_.keys():
+        for check in self._active_tests_:
             config.add_section(check)
             config.set(check, "enabled", self._active_tests_[check]["enabled"])
             if hasattr(self._active_tests_[check]["test"], "config"):
