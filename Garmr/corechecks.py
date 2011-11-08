@@ -83,41 +83,66 @@ class WebTouch(ActiveTest):
              result = self.result("Fail", "The response code was %s" % response.status_code, None)
          return (result, response)
 
-class StsUpgradeCheck(ActiveTest):
+
+class StsPresentCheck(ActiveTest):
+    insecure_only = False
+    run_passives = True
+    description = "Inspect the second response in the Strict-Transport-Security redirect process according to http://tools.ietf.org/html/draft-hodges-strict-transport-sec"
+    events = {}
+    def do_test(self, url):
+        stsheader = "Strict-Transport-Security"
+        #XXX hack: we should take response isntead
+        url = url.replace('http:', 'https:')
+        #XXX end of hack
+        response = get_url(url, False)
+        if stsheader in response.headers:
+            result = self.result('Pass', 'Subsequential HTTPS Response for STS contained corresponding STS header', None)
+        else:
+            result = self.result('Fail', 'Subsequential HTTPS Response did not contain STS header', None)
+        return (result, response)
+
+class StsRedirectCheck(ActiveTest):
     insecure_only = True
-    run_passives = False
-    description = "Inspect the Strict-Transport-Security redirect process according to http://tools.ietf.org/html/draft-hodges-strict-transport-sec"
+    run_passives = True
+    description = "Inspect the first response in the Strict-Transport-Security redirect process according to http://tools.ietf.org/html/draft-hodges-strict-transport-sec"
+    events = { "Pass": StsPresentCheck,
+            "Error": None,
+            "Fail": None }
 
     def do_test(self, url):
         stsheader = "Strict-Transport-Security"
         u = urlparse(url)
         if u.scheme == "http":
-            correct_header = False
+            response = get_url(url, False)
+            invalid_header = stsheader in response.headers
+            is_redirect = response.status_code == 301
             bad_redirect = False
-            response1 = get_url(url, False)
-            invalid_header = stsheader in response1.headers
-            is_redirect = response1.status_code == 301
             if is_redirect == True:
-                redirect = response1.headers["location"]
-                r = urlparse(redirect)
-                if r.scheme == "https":
-                    response2 = get_url(redirect, False)
-                    correct_header = stsheader in response2.headers
+                redirect = response.headers['location']
+                r = urlparse(redirect) #XXX do we need to check for same-domain? see sts draft!
+                if r.scheme != 'https':
+                    pass
                 else:
                     bad_redirect = True
 
-            success = invalid_header == False and is_redirect == True and correct_header == True
-            if success == True:
+            #continue w/ Pass to see if next location contains stsheader?
+            next_test = (invalid_header == False) and (is_redirect == True) and (bad_redirect == False)
+            if next_test == True:
                 message = "The STS upgrade occurs properly (no STS header on HTTP, a 301 redirect, and an STS header in the subsequent request."
             else:
-                message = "%s%s%s%s" % (
+                message = "%s%s%s" % (
                     "The initial HTTP response included an STS header (RFC violation)." if invalid_header else "",
                     "" if is_redirect else "The initial HTTP response should be a 301 redirect (RFC violation see ).",
-                    "" if correct_header else "The followup to the 301 redirect must include the STS header.",
                     "The 301 location must use the https scheme." if bad_redirect else ""
                     )
-            result = self.result("Pass" if success else "Fail", message, None)
-            return (result, response1)
+            result = self.result('Pass' if next_test else 'Fail', message, None)
+            return (result, response)
+
+        else:
+            #XXX maybe just /change/ the scheme to enforce checking?
+            result = self.result('Skip', 'Not checking for STS-Upgrade on already-secure connection', None)
+            return result
+
 
 class HttpsLoginForm(HtmlTest):
     description = "Check that html forms with password-type inputs point to https"
@@ -194,7 +219,7 @@ def configure(scanner):
     scanner.register_check(WebTouch())
     scanner.register_check(StrictTransportSecurityPresent())
     scanner.register_check(XFrameOptionsPresent())
-    scanner.register_check(StsUpgradeCheck())
+    scanner.register_check(StsRedirectCheck())
     scanner.register_check(HttpOnlyAttributePresent())
     scanner.register_check(SecureAttributePresent())
     scanner.register_check(HttpsLoginForm())
