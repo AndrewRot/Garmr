@@ -45,7 +45,7 @@ class ActiveTest():
 
     def execute(self, url):
         try:
-            resulttyple = self.do_test(url)
+            resulttuple = self.do_test(url)
         except Exception, e:
             tb = traceback.format_exc()
             resulttuple = (ActiveTest().result("Error", e, tb), None)
