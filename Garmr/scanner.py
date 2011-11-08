@@ -150,6 +150,12 @@ class Scanner():
         for key in self._active_tests_.keys():
             test = self._active_tests_[key]["test"]
             results[test.__class__] = self.do_active_scan(test, is_ssl, target)
+            if hasattr(test, 'events'): #TODO enforce every test to have event dict present?
+                if results[test.__class__]['state'] in test.events:
+                    # We are case-sensitive here. What if someone defines it as pass instead of Pass? :)
+                    nexttest = test.events[results[test.__class__]['state']]
+                    if nexttest != None: # When next event is defined as None, we stop.
+                        results[nexttest] = self.do_active_scan(nexttest(), is_ssl, target) # we have to hand over the response!!1, # important: we hand over an instance, not the class
         self.reporter.end_actives()
         return results
 
