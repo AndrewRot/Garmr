@@ -164,9 +164,10 @@ class Scanner():
             self.active_tests_stack = self.active_tests_stack[1:]
             results[testclass], response = self.do_active_scan(testclass, is_ssl, target)
             if hasattr(testclass, 'events'): #TODO enforce every test to have event dict present?
-               if results[testclass]['state'] in testclass.events and testclass.events[results[testclass]['state']] != None:
-                   # We are case-sensitive here. What if someone defines it as 'pass' instead of 'Pass'? :)
-                   nexttest = testclass.events[results[testclass]['state']]
+                events_lower = {k.lower():v for k,v in testclass.events.items()}
+                if results[testclass]['state'].lower() in events_lower and events_lower[results[testclass]['state'].lower()] != None:
+                   nexttest = events_lower[results[testclass]['state'].lower()]
+                   Scanner.logger.info("\t[%s] Instantiated because %s declares it as its successor (the event was '%s')" %  (nexttest, testclass, results[testclass]['state']))
                    self.active_tests_stack.append(nexttest) # we have to hand over the response!!1, # important: we hand over an instance, not the class
         self.reporter.end_actives()
         return results
