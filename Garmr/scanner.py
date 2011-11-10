@@ -80,6 +80,7 @@ class Scanner():
         self._disabled_tests_ = []
         self._passive_tests_ = []
         self._active_tests_ = []
+        self._finished_active_tests_ = []
         self._targets_ = []
         self._protos_ = ["http", "https"]
         Scanner.logger.debug("Scanner initialized.")
@@ -114,26 +115,27 @@ class Scanner():
             result['start'] = datetime.now()
             result['end'] = result['start']
             result['duration'] = 0
-            return result, None
+            return result
         elif (testclass.insecure_only and is_ssl):
             Scanner.logger.info("\t[Skip] [%s] (reason: insecure_only)" % testclass)
             result = ActiveTest().result("Skip", "This check is only applicable to SSL requests", None)
             result['start'] = datetime.now()
             result['end'] = result['start']
             result['duration'] = 0
-            return result, None
+            return result
         elif testclass in self._disabled_tests_:
             Scanner.logger.info("\t[Skip] [%s] (reason: disabled)" % testclass)
             result = ActiveTest().result("Skip", "This check was marked as disabled.", None)
             result['start'] = datetime.now()
             result['end'] = result['start']
             result['duration'] = 0
-            return result, None
+            return result
         start = datetime.now()
         test = testclass() # from now on we have an instance of the class
         result, response = test.execute(target)
         end = datetime.now()
         td = end - start
+        result['response'] = response
         result['start'] = start
         result['end'] = end
         result['duration'] = float((td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6)) / 10**6
@@ -148,7 +150,7 @@ class Scanner():
                 result["passive"][passive_testclass] = self.do_passive_scan(passive_testclass, is_ssl, response)
                 self.reporter.write_passive(passive_testclass, result["passive"][passive_testclass])
             self.reporter.end_passives()
-        return (result, response)
+        return result
 
     def scan_target(self, target):
         ''' iterate over registered tests and deligate for scan '''
@@ -162,13 +164,14 @@ class Scanner():
         while len(self.active_tests_stack) > 0:
             testclass = self.active_tests_stack[0]
             self.active_tests_stack = self.active_tests_stack[1:]
-            results[testclass], response = self.do_active_scan(testclass, is_ssl, target)
+            results[testclass] = self.do_active_scan(testclass, is_ssl, target)
             if hasattr(testclass, 'events'): #TODO enforce every test to have event dict present?
                 events_lower = {k.lower():v for k,v in testclass.events.items()}
                 if results[testclass]['state'].lower() in events_lower and events_lower[results[testclass]['state'].lower()] != None:
                    nexttest = events_lower[results[testclass]['state'].lower()]
                    Scanner.logger.info("\t[%s] Instantiated because %s declares it as its successor (the event was '%s')" %  (nexttest, testclass, results[testclass]['state']))
                    self.active_tests_stack.append(nexttest) # we have to hand over the response!!1, # important: we hand over an instance, not the class
+            self._finished_active_tests_.append(testclass)
         self.reporter.end_actives()
         return results
 
