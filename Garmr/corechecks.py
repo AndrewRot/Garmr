@@ -1,6 +1,6 @@
 from urlparse import urlparse
 import requests
-from scanner import ActiveTest, PassiveTest, HtmlTest, Scanner, get_url
+from scanner import ActiveTest, PassiveTest, HtmlTest, Scanner
 
 class HttpOnlyAttributePresent(PassiveTest):
     description = "Inspect the Set-Cookie: header and determine if the HttpOnly attribute is present."
@@ -65,7 +65,7 @@ class Http200Check(ActiveTest):
     run_passives = True
     description = "Make a GET request to the specified URL, reporting success only on a 200 response without following redirects"
     def do_test(self, url):
-        response = get_url(url, False)
+        response = self.get_url(url, False)
         if response.status_code == 200:
             result = self.result("Pass", "The request returned an HTTP 200 response.", None)
         else:
@@ -76,7 +76,7 @@ class WebTouch(ActiveTest):
      run_passives = True
      description = "Make a GET request to the specified URL, and check for a 200 response after resolving redirects."
      def do_test(self, url):
-         response = requests.get(url)
+         response = self.get_url(url)
          if response.status_code == 200:
              result = self.result("Pass", "The request returned an HTTP 200 response.", None)
          else:
@@ -94,7 +94,7 @@ class StsPresentCheck(ActiveTest):
         #XXX hack: we should take response isntead
         url = url.replace('http:', 'https:')
         #XXX end of hack
-        response = get_url(url, False)
+        response = self.get_url(url, False)
         if stsheader in response.headers:
             result = self.result('Pass', 'Subsequential HTTPS Response for STS contained corresponding STS header', None)
         else:
@@ -113,7 +113,7 @@ class StsRedirectCheck(ActiveTest):
         stsheader = "Strict-Transport-Security"
         u = urlparse(url)
         if u.scheme == "http":
-            response = get_url(url, False)
+            response = self.get_url(url, False)
             invalid_header = stsheader in response.headers
             is_redirect = response.status_code == 301
             bad_redirect = False

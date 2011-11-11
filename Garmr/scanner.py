@@ -15,12 +15,6 @@ def clean_headers(self, response_headers):
             headers[lst[0]] = lst[1].strip()
         return headers
 
-def get_url(url, status = True):
-    r = requests.get(url, allow_redirects = False)
-    if status:
-        r.raise_for_status()
-    return r
-
 class PassiveTest():
     secure_only = False
     insecure_only = False
@@ -38,12 +32,27 @@ class ActiveTest():
     insecure_only = False
     run_passives = True
     description = "The base class for an Active Test."
+    sessions = {}
 
     def __init__(self):
         if hasattr(self, "setup"):
             self.setup()
 
+    def get_url(self, url, status = True):
+        try:
+            sess = self.sessions[self.url]
+        except KeyError:
+            sess = requests.session()
+        print "Issue request towards %s using %s" % (url, sess.cookies)
+        r = sess.get(url, allow_redirects = False)
+        if status:
+            r.raise_for_status()
+        return r
+
     def execute(self, url):
+        self.url = url
+        if self.url not in self.sessions:
+            self.sessions[url] = requests.session() # Create per-target session
         try:
             resulttuple = self.do_test(url)
         except Exception, e:
