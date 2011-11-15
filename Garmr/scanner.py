@@ -227,11 +227,12 @@ class Scanner():
         Scanner.logger.error("%s is not a valid target (reason: %s)" % (url, reason))
 
     def configure_check(self, check_name, key, value):
-        pass #XXX defunct
-        if self._active_tests_.has_key(check_name):
-            check = self._active_tests_[check_name]["test"]
-        elif self._passive_tests_.has_key(check_name):
-            check = self._passive_tests_[check_name]["test"]
+        if check_name in map(lambda x: str(x), self._active_tests_):
+            index = map(lambda x: str(x), self._active_tests_).index(check_name)
+            check = self._active_tests_[index]
+        if check_name in map(lambda x: str(x), self._passive_tests_):
+            index = map(lambda x: str(x), self._active_tests_).index(check_name)
+            check = self._active_tests_[index]
         else:
             raise Exception("The requested check is not available (%s)" % check_name)
         if hasattr(check, "config") == False:
@@ -241,9 +242,9 @@ class Scanner():
         check.config[key] = value
         Scanner.logger.debug("\t%s.%s=%s" % (check_name, key, value))
 
-    def disable_check(self, check_name): #TODO: put in self._disabled_tests_ IF present. warning or error if otherwise
+    def disable_check(self, check_name):
         ''' add a previously added test to a blacklist of test that are to be skipped '''
-        if check_name in self._active_tests_ or check_name in self._passive_tests_:
+        if check_name in map(lambda x: str(x), self._active_tests_) or check_name in map(lambda x: str(x), self._passive_tests_):
             self._disabled_tests_.append(check_name)
         else:
             raise Exception("The requested check is not available (%s)" % check_name)
@@ -279,23 +280,30 @@ class Scanner():
 
         if len(self._targets_) > 0:
             config.add_section("Targets")
-            i = 0
-            for target in self._targets_:
+            for i,target in enumerate(self._targets_):
                 config.set("Targets", "%s"%i, target)
 
-        for check in self._active_tests_:
+        for index, check in enumerate(self._active_tests_):
+            check = str(check)
             config.add_section(check)
-            config.set(check, "enabled", self._active_tests_[check]["enabled"])
-            if hasattr(self._active_tests_[check]["test"], "config"):
-                for key in self._active_tests_[check]["test"].config.keys():
-                    config.set(check, key, self._active_tests_[check]["test"].config[key])
+            if check not in self._disabled_tests_:
+                config.set(check, "enabled", True)
+            else:
+                config.set(check, "enabled", False)
+            if hasattr(self._active_tests_[index], "config"):
+                for key in self._active_tests_[index].config.keys():
+                    config.set(check, key, self._active_tests_[index].config[key])
 
-        for check in self._passive_tests_.keys():
-            config.add_section(check)
-            config.set(check, "enabled", self._passive_tests_[check]["enabled"])
-            if hasattr(self._passive_tests_[check]["test"], "config"):
-                for key in self._passive_tests_[check]["test"].config.keys():
-                    config.set(check, key, self._passive_tests_[check]["test"].config[key])
+        for index, check in enumerate(self._passive_tests_):
+            check = str(check)
+            config.add_section(str(check))
+            if check not in self._disabled_tests_:
+                config.set(check, "enabled", True)
+            else:
+                config.set(check, "enabled", False)
+            if hasattr(self._passive_tests_[index], "config"):
+                for key in self._passive_tests_[index].config.keys():
+                    config.set(check, key, self._passive_tests_[index].config[key])
 
 
         with open(path, 'w') as configfile:
