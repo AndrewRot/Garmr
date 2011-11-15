@@ -38,16 +38,17 @@ class ActiveTest():
         if hasattr(self, "setup"):
             self.setup()
 
-    def get_url(self, url, status = True):
-        try:
-            sess = self.sessions[self.url]
-        except KeyError:
-            sess = requests.session()
-        print "Issue request towards %s using %s" % (url, sess.cookies)
-        r = sess.get(url, allow_redirects = False)
-        if status:
-            r.raise_for_status()
-        return r
+    #def get_url(self, url, status = True):
+    #    try:
+    #        sess = self.sessions[self.url]
+    #    except KeyError:
+    #        sess = requests.session()
+    #    #print "Issue request towards %s using %s" % (url, sess.cookies)
+    #    r = sess.get(url, allow_redirects = False)
+    #    print url, r.status_code, status
+    #    if status:
+    #        r.raise_for_status()
+    #    return r
 
     def execute(self, url):
         self.url = url

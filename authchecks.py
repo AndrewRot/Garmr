@@ -1,6 +1,6 @@
 from urlparse import urlparse
 import requests
-from Garmr.scanner import ActiveTest, PassiveTest, Scanner, get_url
+from Garmr.scanner import ActiveTest, PassiveTest, Scanner
 
 
 class SessionTest(ActiveTest):

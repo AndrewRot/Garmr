@@ -10,7 +10,8 @@ class AdminAvailable(ActiveTest):
     def do_test(self, url):
         u = urlparse(url)
         adminurl="%s://%s/%s" % (u.scheme, u.netloc, self.config["path"])
-        response = self.url_get(adminurl)
+        sess = self.sessions[self.url]
+        response = sess.get(adminurl)
         if response.status_code == 200:
             result = self.result("Pass", "Django admin page is present at %s." % adminurl, response.content)
         else:
