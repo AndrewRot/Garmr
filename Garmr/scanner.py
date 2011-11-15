@@ -27,7 +27,7 @@ class PassiveTest():
 
 
 class ActiveTest():
-
+    new_session = False # enable  (e.g. from cli) to enforce new session generation
     secure_only = False
     insecure_only = False
     run_passives = True
@@ -52,7 +52,7 @@ class ActiveTest():
 
     def execute(self, url):
         self.url = url
-        if self.url not in self.sessions:
+        if self.url not in self.sessions or self.new_session:
             self.sessions[url] = requests.session() # Create per-target session
         try:
             resulttuple = self.do_test(url)
