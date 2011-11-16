@@ -7,6 +7,7 @@ import logging
 import requests
 import socket
 import traceback
+from inspect import getargspec
 
 def clean_headers(self, response_headers):
         headers = {}
@@ -142,7 +143,12 @@ class Scanner():
             return result
         start = datetime.now()
         test = testclass() # from now on we have an instance of the class
-        result, response = test.execute(target)
+        if "predecessor" in getargspec(test.execute).args:
+            # Check if class accepts this parameter. avoids rewriting.
+            predecessor_results = results[self._finished_active_tests_[-1]]
+            result, response = test.execute(target, predecessor=predecessor_results)
+        else:
+            result, response = test.execute(target)
         end = datetime.now()
         td = end - start
         result['response'] = response
