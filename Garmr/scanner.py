@@ -51,12 +51,15 @@ class ActiveTest():
     #        r.raise_for_status()
     #    return r
 
-    def execute(self, url):
+    def execute(self, url, predecessor=None):
         self.url = url
         if self.url not in self.sessions or self.new_session:
             self.sessions[url] = requests.session() # Create per-target session
         try:
-            resulttuple = self.do_test(url)
+            if "pred" in getargspec(self.do_test).args:
+                resulttuple = self.do_test(url, predecessor)
+            else:
+                resulttuple = self.do_test(url)
         except Exception, e:
             tb = traceback.format_exc()
             resulttuple = (ActiveTest().result("Error", e, tb), None)
@@ -143,9 +146,9 @@ class Scanner():
             return result
         start = datetime.now()
         test = testclass() # from now on we have an instance of the class
-        if "predecessor" in getargspec(test.execute).args:
+        if "pred" in getargspec(test.do_test).args:
             # Check if class accepts this parameter. avoids rewriting.
-            predecessor_results = results[self._finished_active_tests_[-1]]
+            predecessor_results = self.results[self._finished_active_tests_[-1]]
             result, response = test.execute(target, predecessor=predecessor_results)
         else:
             result, response = test.execute(target)
@@ -174,22 +177,22 @@ class Scanner():
         Scanner.logger.info("[%s] scanning:" % target)
         url = urlparse(target)
         is_ssl = url.scheme == "https"
-        results = {}
+        self.results = {}
         self.reporter.start_actives()
         self.active_tests_stack = self._active_tests_
         while len(self.active_tests_stack) > 0:
             testclass = self.active_tests_stack[0]
             self.active_tests_stack = self.active_tests_stack[1:]
-            results[testclass] = self.do_active_scan(testclass, is_ssl, target)
+            self.results[testclass] = self.do_active_scan(testclass, is_ssl, target)
             if hasattr(testclass, 'events'): #TODO enforce every test to have event dict present?
                 events_lower = {k.lower():v for k,v in testclass.events.items()}
-                if results[testclass]['state'].lower() in events_lower and events_lower[results[testclass]['state'].lower()] != None:
-                   nexttest = events_lower[results[testclass]['state'].lower()]
-                   Scanner.logger.info("\t[%s] Instantiated because %s declares it as its successor (the event was '%s')" %  (nexttest, testclass, results[testclass]['state']))
+                if self.results[testclass]['state'].lower() in events_lower and events_lower[self.results[testclass]['state'].lower()] != None:
+                   nexttest = events_lower[self.results[testclass]['state'].lower()]
+                   Scanner.logger.info("\t[%s] Instantiated because %s declares it as its successor (the event was '%s')" %  (nexttest, testclass, self.results[testclass]['state']))
                    self.active_tests_stack.append(nexttest) # we have to hand over the response!!1, # important: we hand over an instance, not the class
             self._finished_active_tests_.append(testclass)
         self.reporter.end_actives()
-        return results
+        return self.results
 
     def run_scan(self):
         ''' iterate over target and deligate to list of tests '''
