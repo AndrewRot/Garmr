@@ -9,13 +9,6 @@ import socket
 import traceback
 from inspect import getargspec
 
-def clean_headers(self, response_headers):
-        headers = {}
-        for head in response_headers:
-            lst = head.strip(" \r\n").split(":")
-            headers[lst[0]] = lst[1].strip()
-        return headers
-
 class PassiveTest():
     secure_only = False
     insecure_only = False
