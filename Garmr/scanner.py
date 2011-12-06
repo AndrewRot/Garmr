@@ -8,6 +8,32 @@ import requests
 import socket
 import traceback
 from inspect import getargspec
+from subprocess import check_output, CalledProcessError
+import json
+
+def exec_helper(cmd, args=None):
+    '''Use this function to call helpers, not to perform checks!
+    The example use-case would a Testcase that required to get an
+    authentication tokenout of a mailbox to complete a login procedure.
+    The email-fetching would be done as a helper
+    '''
+    if not args:
+        params = cmd
+    else:
+        params = [cmd] + args # becomes [cmd, arg1, arg2]
+    try:
+        output = check_output(params)
+        try:
+            res = json.loads(output)
+        except ValueError:
+            return {"result":'Fail', 'message':'Invalid JSON data', 'data':''}
+        if 'result' in res and 'message' in res and 'data' in res:
+            return res
+        else:
+            return {"result":'Fail', 'message':'Incomplete JSON data. Your helper should return a dict with the keys result, message and data.', 'data':''}
+    except CalledProcessError as e: # raised when returncode != 0
+        return {"result":'Fail', 'message':'The helper script returned with a non-zero returnvalue', 'data': e.output}
+
 
 class PassiveTest():
     secure_only = False
