@@ -204,7 +204,7 @@ class Scanner():
             self.active_tests_stack = self.active_tests_stack[1:]
             self.results[testclass] = self.do_active_scan(testclass, is_ssl, target)
             if hasattr(testclass, 'events'): #TODO enforce every test to have event dict present?
-                events_lower = {k.lower():v for k,v in testclass.events.items()}
+                events_lower = dict([(k.lower(),v) for k,v in testclass.events.items()])
                 if self.results[testclass]['state'].lower() in events_lower and events_lower[self.results[testclass]['state'].lower()] != None:
                    nexttest = events_lower[self.results[testclass]['state'].lower()]
                    Scanner.logger.info("\t[%s] Instantiated because %s declares it as its successor (the event was '%s')" %  (nexttest, testclass, self.results[testclass]['state']))
