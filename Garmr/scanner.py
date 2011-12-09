@@ -157,7 +157,7 @@ class Scanner():
             result['end'] = result['start']
             result['duration'] = 0
             return result
-        elif str(testclass) in self._disabled_tests_:
+        elif str(testclass).split('.')[-1] in self._disabled_tests_:
             Scanner.logger.info("\t[Skip] [%s] (reason: disabled)" % testclass)
             result = ActiveTest().result("Skip", "This check was marked as disabled.", None)
             result['start'] = datetime.now()
@@ -273,7 +273,7 @@ class Scanner():
 
     def disable_check(self, check_name):
         ''' add a previously added test to a blacklist of test that are to be skipped '''
-        if check_name in map(lambda x: str(x), self._active_tests_) or check_name in map(lambda x: str(x), self._passive_tests_):
+        if check_name in map(lambda x: str(x).split('.')[-1], self._active_tests_) or check_name in map(lambda x: str(x).split('.')[-1], self._passive_tests_):
             self._disabled_tests_.append(check_name)
             Scanner.logger.debug("\t%s disabled.", check_name)
         else:
