@@ -277,8 +277,8 @@ class Scanner():
             self._disabled_tests_.append(check_name)
             Scanner.logger.debug("\t%s disabled.", check_name)
         else:
-            print "The requested check is not available (%s)" % check_name
-            print "The list of available checks is %s for actives and %s for passives" % (self._active_tests_, self._passive_tests_)
+            print "The requested check is not available (%s)" % check_name  
+            print "The list of available checks is %s for actives and %s for passives" % (map(lambda x: str(x).split('.')[-1], self._active_tests_), map(lambda x: str(x).split('.')[-1], self._passive_tests_))
             Scanner.logger.debug("\t%s NOT disabled, because it could not be found.", check_name)
 
     def register_check(self, test):
