@@ -275,9 +275,11 @@ class Scanner():
         ''' add a previously added test to a blacklist of test that are to be skipped '''
         if check_name in map(lambda x: str(x), self._active_tests_) or check_name in map(lambda x: str(x), self._passive_tests_):
             self._disabled_tests_.append(check_name)
+            Scanner.logger.debug("\t%s disabled.", check_name)
         else:
-            raise Exception("The requested check is not available (%s)" % check_name)
-        Scanner.logger.debug("\t%s disabled.", check_name)
+            print "The requested check is not available (%s)" % check_name
+            print "The list of available checks is %s for actives and %s for passives" % (self._active_tests_, self._passive_tests_)
+            Scanner.logger.debug("\t%s NOT disabled, because it could not be found.", check_name)
 
     def register_check(self, test):
         ''' add a test to the scanner '''
