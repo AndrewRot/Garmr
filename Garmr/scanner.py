@@ -157,7 +157,7 @@ class Scanner():
             result['end'] = result['start']
             result['duration'] = 0
             return result
-        elif testclass in self._disabled_tests_:
+        elif str(testclass) in self._disabled_tests_:
             Scanner.logger.info("\t[Skip] [%s] (reason: disabled)" % testclass)
             result = ActiveTest().result("Skip", "This check was marked as disabled.", None)
             result['start'] = datetime.now()
