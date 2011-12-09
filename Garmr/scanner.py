@@ -8,8 +8,10 @@ import requests
 import socket
 import traceback
 from inspect import getargspec
-from subprocess import check_output, CalledProcessError
+import subprocess
 import json
+
+
 
 def exec_helper(cmd, args=None):
     '''Use this function to call helpers, not to perform checks!
@@ -22,18 +24,17 @@ def exec_helper(cmd, args=None):
     else:
         params = [cmd] + args # becomes [cmd, arg1, arg2]
     try:
-        output = check_output(params)
+        output = subprocess.Popen(params, stdout=subprocess.PIPE).communicate()[0] # use Popen instead of subprocess.get_output for Python2.6 compatibility
         try:
             res = json.loads(output)
         except ValueError:
-            return {"result":'Fail', 'message':'Invalid JSON data', 'data':''}
+            return {"result":"Fail", "message":"Invalid JSON data", "data":""}
         if 'result' in res and 'message' in res and 'data' in res:
             return res
         else:
-            return {"result":'Fail', 'message':'Incomplete JSON data. Your helper should return a dict with the keys result, message and data.', 'data':''}
-    except CalledProcessError as e: # raised when returncode != 0
-        return {"result":'Fail', 'message':'The helper script returned with a non-zero returnvalue', 'data': e.output}
-
+            return {"result":"Fail", "message":"Incomplete JSON data. Your helper should return a dict with the keys result, message and data.", "data":""}
+    except subprocess.CalledProcessError as e: # raised when? for Popen?
+        return {"result":"Fail", "message":"The helper script returned with a non-zero returnvalue", "data": e.output}
 
 class PassiveTest():
     secure_only = False
