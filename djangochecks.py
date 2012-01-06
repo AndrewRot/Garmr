@@ -34,7 +34,7 @@ class IsDebugModeReallyEnabled(HtmlTest):
     def analyze_html(self, response, soup):
         # we dont really analye the soup,  but that's ok;p
         error_str = "You're seeing this error because you have" #from django source django/views/debug.py - maybe subject to change
-        if error_str in respnose.content:
+        if error_str in response.content:
             result = self.result('Fail', 'Typical string of echnical 404/500 error page found', None)
         else:
             result = self.result('Pass', 'Debug strings not found', response)
