@@ -61,6 +61,6 @@ This version of Garmr requires Requests > 0.8.3
     Disable core checks will prevent all of the checks in corechecks from being loaded; this is useful to limit the scope of testing.
 
 ## Tasks
-See [Issues on Github[(https://github.com/freddyb/garmr/issues)
+See [Issues on Github](https://github.com/freddyb/garmr/issues)
  
  
