@@ -9,11 +9,10 @@ the [Mozilla Secure Coding Guidelines](https://wiki.mozilla.org/WebAppSec/Secure
 
 This version of Garmr requires Requests > 0.8.3
 
-
-git clone https://github.com/freddyb/Garmr.git
-cd Garmr
-sudo python setup.py install
-garmr -u http://my.target.app
+    git clone https://github.com/freddyb/Garmr.git
+    cd Garmr
+    sudo python setup.py install
+    garmr -u http://my.target.app
 
 ## Usage
     usage: Runs a set of tests against the set of provided URLs
