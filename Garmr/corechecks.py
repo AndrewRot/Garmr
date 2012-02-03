@@ -23,7 +23,7 @@ class SecureAttributePresent(PassiveTest):
         cookieheader = "Set-Cookie"
         has_cookie = cookieheader in response.headers
         if has_cookie:
-            if "httponly" in response.headers[cookieheader].lower():
+            if "secure" in response.headers[cookieheader].lower():
                 if url.scheme == "https":
                     result = self.result("Pass", "HttpOnly is set", response.headers[cookieheader])
                 else:
