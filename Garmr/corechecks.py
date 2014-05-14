@@ -149,55 +149,18 @@ class StsRedirectCheck(ActiveTest):
 
 
 
-class CSPPolicyCheck(ActiveTest):
-    insecure_only = False
-    run_passives = True
-    description = 'checks if the policy is present'
-    def do_test(self, url, pred):
-        cspheader = "X-Content-Security-Policy"
-        csproheader = 'X-Content-Security-Policy-Report-Only'
-        response = pred['response']
-        if cspheader in response.headers or csproheader in response.headers:
-            if cspheader in response.headers:
-                h = response.headers[cspheader]
-            elif csproheader in response.headers:
-                h = response.headers[csproheader]
-            harr = h.split(' ')
-            if harr[0].lower() == 'policy-uri':
-                url = urljoin(response.url, harr[1]) # join previous URL with the one coming from the header
-                sess = self.sessions[self.url]
-                resp = sess.get(url) # allow_redirects=False?
-                if resp.status_code == 200:
-                    result = self.result('Pass', 'Policy file present', resp)
-                else:
-                    result = self.result('Fail', 'Policy file not found', resp)
-                return result, resp
-
-
-
-
 class CSPHeaderCheck(ActiveTest):
     # please revise after another readthrough of https://wiki.mozilla.org/Security/CSP/Specification#Sample_Policy_Definitions necessary
     insecure_only = False
     run_passives = True
     description = "Checks if the CSP Header is present and links to a policy. If it does, we will forward to another test to check if it present"
-    events = {'Pass': CSPPolicyCheck}
     def do_test(self, url):
-        cspheader = "X-Content-Security-Policy"
-        csproheader = 'X-Content-Security-Policy-Report-Only'
-        #x-content-security-policy-report-only: policy-uri /services/csp/policy?build=1919
-
+        cspheader = "Content-Security-Policy"
+        csproheader = 'Content-Security-Policy-Report-Only'
         sess = self.sessions[self.url]
         response = sess.get(url, allow_redirects=False)
         if cspheader in response.headers or csproheader in response.headers:
-            if cspheader in response.headers:
-                h = response.headers[cspheader]
-            elif csproheader in response.headers:
-                h = response.headers[csproheader]
-            harr = h.split(' ')
-            if harr[0].lower() == 'policy-uri':
-                result = self.result('Pass', 'CSP Header present and points to a policy file', None)
-                #XXX is this line correct here??
+            result = self.result('Pass', 'CSP Header present.', None)
         else:
             result = self.result('Fail', 'No %s or %s in headers' % (cspheader, csproheader), None)
         return (result, response)
